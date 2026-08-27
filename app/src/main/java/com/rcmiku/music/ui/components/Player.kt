@@ -1,5 +1,6 @@
 package com.rcmiku.music.ui.components
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.basicMarquee
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -63,6 +65,7 @@ import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.constants.MediaSessionConstants
+import com.rcmiku.music.constants.watchMode
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.ui.icons.Album
 import com.rcmiku.music.ui.icons.Artist
@@ -79,12 +82,14 @@ import com.rcmiku.music.ui.navigation.AlbumNav
 import com.rcmiku.music.ui.navigation.ArtistNav
 import com.rcmiku.music.utils.getItemShape
 import com.rcmiku.music.utils.makeTimeString
+import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.ncmapi.model.Artist
 import com.rcmiku.ncmapi.model.Song
 import com.rcmiku.ncmapi.model.SongAlbum
 import com.rcmiku.ncmapi.utils.json
 import kotlinx.coroutines.flow.map
 
+@SuppressLint("FlowOperatorInvokedInComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Player(
@@ -97,7 +102,8 @@ fun Player(
     onClick: () -> Unit = {},
     onContainerClick: () -> Unit = {},
     onPositionUpdate: (Long) -> Unit,
-    navController: NavHostController
+    navController: NavHostController,
+    isTablet: Boolean = false
 ) {
 
     BackHandler {
@@ -133,6 +139,7 @@ fun Player(
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp
+    val watchMode by rememberPreference(watchMode, false)
 
     Surface(
         modifier = modifier
@@ -165,23 +172,36 @@ fun Player(
                 }
             }
 
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .aspectRatio(1f)
-                    .clip(MaterialTheme.shapes.small)
-                    .clickable { onClick() }
-            ) {
-                AsyncImage(
-                    model = mediaMetadata.artworkUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = imageModifier
+
+            if(!watchMode) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.align(Alignment.CenterHorizontally).then(
+                        if (isTablet) {
+                            Modifier
+                                .sizeIn(maxWidth = 280.dp, maxHeight = 280.dp)
+                                .aspectRatio(1f)
+                        } else {
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
+                                .aspectRatio(1f)
+                        }
+                    )
                         .clip(MaterialTheme.shapes.small)
-                        .fillMaxWidth()
-                )
+                        .clickable { onClick() }
+                ) {
+                    AsyncImage(
+                        alignment = Alignment.Center,
+                        model = mediaMetadata.artworkUri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = imageModifier
+                            .clip(MaterialTheme.shapes.small)
+                            .fillMaxSize()
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
             }
 
             Column(
@@ -202,6 +222,17 @@ fun Player(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
+                            if(watchMode){
+                                AsyncImage(
+                                    model = mediaMetadata.artworkUri,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = imageModifier
+                                        .clip(MaterialTheme.shapes.small)
+                                        .size(80.dp,80.dp)
+                                        .clickable{ onClick() }
+                                )
+                            }
                             mediaMetadata.title?.let {
                                 Text(
                                     text = it.toString(),

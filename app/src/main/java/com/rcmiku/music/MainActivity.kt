@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +18,7 @@ import com.rcmiku.music.playback.PlayerState
 import com.rcmiku.music.playback.state
 import com.rcmiku.music.ui.screen.MainScreen
 import com.rcmiku.music.ui.theme.JetMeloTheme
+import com.rcmiku.music.utils.rememberPreference
 import dagger.hilt.android.AndroidEntryPoint
 
 @UnstableApi
@@ -41,12 +43,16 @@ class MainActivity : ComponentActivity() {
                     playerState = state(applicationContext)
                 }
             }
-            JetMeloTheme {
+            val _theme by rememberPreference(com.rcmiku.music.constants.theme, defaultValue = 2)
+            var is_dark = if (_theme == 2) isSystemInDarkTheme() else _theme == 1
+            JetMeloTheme(darkTheme = is_dark) {
                 CompositionLocalProvider(
                     LocalPlayerController provides playerController,
                     LocalPlayerState provides playerState
                 ) {
-                    MainScreen()
+                    MainScreen(
+                        context = this
+                    )
                 }
             }
         }

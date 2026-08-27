@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Extract version from project
+        id: version
+        run: |
+          VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
+          echo "name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "Detected versionName=$VERSION_NAME versionCode=$VERSION_CODE"
+
+      - name: Build unsigned release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Find APK
+        id: apk
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "No APK found!"
+            find app/build/outputs -type f || true
+            exit 1
+          fi
+          echo "path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found: $APK_PATH"
+          ls -lh "$APK_PATH"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.name }}
+          name: Mooic ${{ steps.version.outputs.name }}
+          body: |
+            ## Mooic ${{ steps.version.outputs.name }}
+
+            - **Unsigned** release APK (no keystore in CI)
+            - Built with GitHub Actions
+            - versionCode: ${{ steps.version.outputs.code }}
+
+            > 安裝前請自行簽名，或使用 `apksigner` / Android Studio 簽名後再安裝。
+          files: ${{ steps.apk.outputs.path }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

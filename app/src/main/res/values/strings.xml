@@ -90,4 +90,18 @@
     <string name="reset_default">重置默认</string>
     <string name="server_settings">服务器设置</string>
     <string name="click_to_login">点击登录</string>
+    <string name="watch_mode">开启手表模式</string>
+    <string name="watch_mode_describe">避免小屏设备上播放界面图片过大</string>
+    <string name="login_subtitle">使用手机号或二维码登录</string>
+    <string name="country_code">区号</string>
+    <string name="phone_number">手机号</string>
+    <string name="phone_number_hint">请输入手机号</string>
+    <string name="captcha">验证码</string>
+    <string name="captcha_hint">请输入验证码</string>
+    <string name="get_captcha">获取验证码</string>
+    <string name="or">或</string>
+    <string name="qr_code_login">二维码登录</string>
+    <string name="scan_qr_code">扫码登录</string>
+    <string name="qr_code">二维码</string>
+    <string name="scan_qr_code_hint">请使用网易云音乐APP扫描二维码登录</string>
 </resources>

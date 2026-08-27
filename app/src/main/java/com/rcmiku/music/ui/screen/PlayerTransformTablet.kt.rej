@@ -1,0 +1,10 @@
+--- app/src/main/java/com/rcmiku/music/ui/screen/PlayerTransformTablet.kt
++++ app/src/main/java/com/rcmiku/music/ui/screen/PlayerTransformTablet.kt	(date 1785748214333)
+@@ -2,6 +2,7 @@
+ 
+ import androidx.compose.animation.AnimatedContent
+ import androidx.compose.animation.ExperimentalSharedTransitionApi
++import androidx.activity.compose.BackHandler
+ import androidx.compose.animation.SharedTransitionLayout
+ import androidx.compose.animation.SharedTransitionScope
+ import androidx.compose.animation.fadeIn

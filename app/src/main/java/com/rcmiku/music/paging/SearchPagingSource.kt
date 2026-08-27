@@ -34,7 +34,7 @@ class SearchPagingSource(
                     nextKey = nextKey
                 )
             } else {
-                LoadResult.Error(Exception("Load data filed"))
+                LoadResult.Error(Exception("Load data failed"))
             }
         } catch (e: Exception) {
             LoadResult.Error(e)
