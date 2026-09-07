@@ -54,7 +54,11 @@ class LibraryScreenViewModel @Inject constructor(
         viewModelScope.launch {
             AccountApi.accountInfo().onSuccess {
                 _userInfo.value = it
-                context.dataStore.edit { preferences -> preferences[cachedUserInfoKey] = json.encodeToString(it) }
+                context.dataStore.edit { preferences ->
+                    preferences[cachedUserInfoKey] = json.encodeToString(it)
+                    // 持久化 userId，供"添加到歌单"、喜欢等功能使用
+                    preferences[com.rcmiku.music.constants.userIdKye] = it.account.profile.userId
+                }
             }
         }
     }

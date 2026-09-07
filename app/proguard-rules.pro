@@ -22,3 +22,12 @@
 
 -keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
 -dontwarn org.slf4j.**
+
+# kotlinx.serialization (官方建议规则，防止混淆后 JSON 反序列化失败)
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.AnnotationsKt
+-keepclassmembers class kotlinx.serialization.json.** { *** Companion; }
+-keepclasseswithmembers class kotlinx.serialization.json.** { kotlinx.serialization.KSerializer serializer(...); }
+-keep,includedescriptorclasses class com.rcmiku.**$$serializer { *; }
+-keepclassmembers class com.rcmiku.** { *** Companion; }
+-keepclasseswithmembers class com.rcmiku.** { kotlinx.serialization.KSerializer serializer(...); }

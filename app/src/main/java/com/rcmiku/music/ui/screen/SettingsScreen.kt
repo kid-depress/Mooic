@@ -47,6 +47,7 @@ import com.rcmiku.music.constants.SettingItemCorner
 import com.rcmiku.music.constants.SettingItemHeight
 import com.rcmiku.music.constants.SettingItemSubCorner
 import com.rcmiku.music.constants.apiBaseUrlKey
+import com.rcmiku.music.constants.allowSimultaneousPlaybackKey
 import com.rcmiku.music.constants.audioQualityKey
 import com.rcmiku.music.constants.autoSkipNextOnErrorKey
 import com.rcmiku.music.constants.dynamicThemeColorKey
@@ -59,6 +60,7 @@ import com.rcmiku.music.ui.components.SongQualityDialog
 import com.rcmiku.music.ui.components.ThemeSeedDialog
 import com.rcmiku.music.ui.components.UrlEditDialog
 import com.rcmiku.music.ui.icons.Dns
+import com.rcmiku.music.ui.icons.AudioLines
 import com.rcmiku.music.ui.icons.Github
 import com.rcmiku.music.ui.icons.GraphicEq
 import com.rcmiku.music.ui.icons.Login
@@ -84,6 +86,7 @@ fun SettingsScreen(navController: NavHostController) {
     var useDynamicThemeColor by rememberPreference(dynamicThemeColorKey, false)
     var themeSeed by rememberEnumPreference(themeSeedColorKey, defaultValue = AppThemeSeed.PURPLE)
     var autoSkipNextOnError by rememberPreference(autoSkipNextOnErrorKey, false)
+    var allowSimultaneousPlayback by rememberPreference(allowSimultaneousPlaybackKey, false)
     var ncmCookie by rememberPreference(ncmCookieKey, "")
     var apiBaseUrl by rememberPreference(apiBaseUrlKey, "https://netease.depresskid.top")
     var unblockBaseUrl by rememberPreference(unblockBaseUrlKey, "https://unlock.depresskid.top")
@@ -156,6 +159,18 @@ fun SettingsScreen(navController: NavHostController) {
                 Spacer(Modifier.width(12.dp))
             },
             onClick = { autoSkipNextOnError = !autoSkipNextOnError }
+        ),
+        SettingItemData(
+            title = stringResource(R.string.allow_simultaneous_playback),
+            imageVector = AudioLines,
+            trailingContent = {
+                Switch(
+                    checked = allowSimultaneousPlayback,
+                    onCheckedChange = { allowSimultaneousPlayback = it }
+                )
+                Spacer(Modifier.width(12.dp))
+            },
+            onClick = { allowSimultaneousPlayback = !allowSimultaneousPlayback }
         ),
         SettingItemData(
             title = stringResource(R.string.api_server),

@@ -7,6 +7,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import com.rcmiku.music.paging.ArtistAlbumPagingSource
+import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.api.artist.ArtistApi
 import com.rcmiku.ncmapi.model.ArtistHeadInfoResponse
 import com.rcmiku.ncmapi.model.ArtistTopSong
@@ -31,12 +32,37 @@ class ArtistScreenViewModel @Inject constructor(savedStateHandle: SavedStateHand
     val artistTopSong: StateFlow<ArtistTopSong?> =
         _artistTopSong.asStateFlow()
 
+    /** 关注状态：null=未登录/未知，true=已关注，false=未关注 */
+    private val _subscribed = MutableStateFlow<Boolean?>(null)
+    val subscribed: StateFlow<Boolean?> = _subscribed.asStateFlow()
+
+    private val _subToggling = MutableStateFlow(false)
+    val subToggling: StateFlow<Boolean> = _subToggling.asStateFlow()
+
     init {
         viewModelScope.launch {
             artistId?.let {
                 _artistHeadInfo.value = ArtistApi.artistHeadInfo(it).getOrNull()
                 _artistTopSong.value = ArtistApi.artistTopSong(it).getOrNull()
             }
+        }
+        viewModelScope.launch {
+            artistId?.let { id ->
+                _subscribed.value =
+                    AccountApi.artistSublist().getOrNull()?.any { it.id == id }
+            }
+        }
+    }
+
+    fun toggleSub() {
+        val id = artistId ?: return
+        val current = _subscribed.value ?: return
+        if (_subToggling.value) return
+        viewModelScope.launch {
+            _subToggling.value = true
+            AccountApi.artistSub(id, sub = !current)
+                .onSuccess { _subscribed.value = !current }
+            _subToggling.value = false
         }
     }
 

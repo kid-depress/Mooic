@@ -41,10 +41,14 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.rcmiku.music.MainActivity
 import com.rcmiku.music.R
 import com.rcmiku.music.constants.MediaSessionConstants
+import com.rcmiku.music.constants.allowSimultaneousPlaybackKey
 import com.rcmiku.music.constants.audioQualityKey
+import com.rcmiku.music.constants.heartBeatModeKey
 import com.rcmiku.music.constants.use40DpIconKey
 import com.rcmiku.music.constants.userIdKye
 import com.rcmiku.music.data.favoriteSongIdsDatastore
+import com.rcmiku.music.extensions.currentMediaItems
+import com.rcmiku.music.extensions.toMediaItem
 import com.rcmiku.music.extensions.updateMediaItemUri
 import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.music.utils.dataStore
@@ -52,7 +56,9 @@ import com.rcmiku.music.utils.enumPreference
 import com.rcmiku.music.utils.preference
 import com.rcmiku.music.utils.reportLikeFailure
 import com.rcmiku.ncmapi.api.account.AccountApi
+import com.rcmiku.ncmapi.api.fm.PersonalFmApi
 import com.rcmiku.ncmapi.api.player.SongLevel
+import com.rcmiku.ncmapi.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -68,6 +74,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
 import com.rcmiku.ncmapi.utils.CookieProvider
+import kotlin.random.Random
 
 @UnstableApi
 class PlaybackService : MediaSessionService() {
@@ -77,6 +84,10 @@ class PlaybackService : MediaSessionService() {
     private val use40DpIcon by preference(this, use40DpIconKey, false)
     private val userId by preference(this, userIdKye, 0L)
     private val audioQuality by enumPreference(this, audioQualityKey, SongLevel.STANDARD)
+    private val allowSimultaneousPlayback by preference(this, allowSimultaneousPlaybackKey, false)
+    private var heartBeatEnabled = false
+    private var likedSongs: List<Song> = emptyList()
+    private var likedSongsLoading = false
     private var scrobbleJob: Job? = null
     private var scrobbleState: ScrobbleState? = null
 
@@ -182,6 +193,11 @@ class PlaybackService : MediaSessionService() {
                 .setAudioOffloadPreferences(audioOffloadPreferences)
                 .build()
         player.repeatMode = REPEAT_MODE_ALL
+        // 默认独占音频焦点；开启"允许与其他应用同时播放"后不再请求焦点（handleAudioFocus=false）
+        player.setAudioAttributes(
+            player.audioAttributes,
+            !allowSimultaneousPlayback
+        )
         mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(
                 PendingIntent.getActivity(
@@ -193,6 +209,8 @@ class PlaybackService : MediaSessionService() {
             ).setCallback(MediaSessionCallback())
             .setCustomLayout(ImmutableList.of(favoriteButton, shuffleButton)).build()
         observeIconPreference()
+        observeAudioFocusPreference(player)
+        observeHeartBeat(player)
         observeFavoriteSongIds()
         observeScrobble(player)
     }
@@ -255,6 +273,7 @@ class PlaybackService : MediaSessionService() {
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 resetScrobble(player)
+                maybeInjectHeartBeatSong(player)
                 if (player.isPlaying) startScrobbleTicker(player)
             }
 
@@ -407,6 +426,69 @@ class PlaybackService : MediaSessionService() {
                 .map { it[use40DpIconKey] ?: false }.distinctUntilChanged().collect {
                     updateCustomLayout()
                 }
+        }
+    }
+
+    @kotlin.OptIn(FlowPreview::class)
+    private fun observeAudioFocusPreference(player: Player) {
+        scope.launch {
+            applicationContext.dataStore.data
+                .map { it[allowSimultaneousPlaybackKey] ?: false }
+                .distinctUntilChanged()
+                .collect { allow ->
+                    player.setAudioAttributes(
+                        player.audioAttributes,
+                        !allow
+                    )
+                }
+        }
+    }
+
+    @kotlin.OptIn(FlowPreview::class)
+    private fun observeHeartBeat(player: Player) {
+        scope.launch {
+            applicationContext.dataStore.data
+                .map { it[heartBeatModeKey] ?: false }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    heartBeatEnabled = enabled
+                    if (enabled) {
+                        ensureLikedSongs()
+                        maybeInjectHeartBeatSong(player)
+                    }
+                }
+        }
+    }
+
+    /** 心动模式：切歌时按概率在下一首位置插入一首喜欢的歌 */
+    private fun maybeInjectHeartBeatSong(player: Player) {
+        if (!heartBeatEnabled) return
+        if (likedSongs.isEmpty()) {
+            ensureLikedSongs()
+            return
+        }
+        if (Random.nextFloat() > 0.35f) return
+        val inQueue = player.currentMediaItems.map { it.mediaId }.toSet()
+        val candidates = likedSongs.filter { it.id.toString() !in inQueue }
+        if (candidates.isEmpty()) return
+        val song = candidates.random()
+        if (player.nextMediaItemIndex != C.INDEX_UNSET) {
+            player.addMediaItem(player.nextMediaItemIndex, song.toMediaItem())
+        }
+    }
+
+    private fun ensureLikedSongs() {
+        if (likedSongsLoading || likedSongs.isNotEmpty()) return
+        if (!CookieProvider.isLoggedIn()) return
+        likedSongsLoading = true
+        scope.launch {
+            val ids = AccountApi.favoriteSongIds().getOrNull()?.ids.orEmpty()
+            likedSongs = if (ids.isNotEmpty()) {
+                PersonalFmApi.songDetail(ids).getOrNull().orEmpty()
+            } else {
+                emptyList()
+            }
+            likedSongsLoading = false
         }
     }
 

@@ -91,19 +91,57 @@ object AccountApi {
         songIds: List<Long>,
         manipulateType: PlayManipulateType = PlayManipulateType.ADD
     ): Result<ApiCodeResponse> {
-        return if (manipulateType == PlayManipulateType.ADD) {
-            apiGet("/playlist/track/add", mapOf(
+        val result = if (manipulateType == PlayManipulateType.ADD) {
+            apiPost<ApiCodeResponse>("/playlist/track/add", mapOf(
                 "op" to "add",
                 "pid" to playlistId,
                 "tracks" to songIds.joinToString(",")
             ))
         } else {
-            apiGet("/playlist/track/delete", mapOf(
+            apiPost<ApiCodeResponse>("/playlist/track/delete", mapOf(
                 "op" to "del",
                 "pid" to playlistId,
                 "tracks" to songIds.joinToString(",")
             ))
         }
+        return result.mapCatching {
+            if (it.code == 200) {
+                it
+            } else {
+                val reason = it.message?.takeIf(String::isNotBlank)
+                    ?: it.msg?.takeIf(String::isNotBlank)
+                    ?: "服务端返回业务码 ${it.code}"
+                throw IllegalStateException(reason)
+            }
+        }
+    }
+
+    /** 已关注歌手列表 */
+    suspend fun artistSublist(limit: Int = 1000): Result<List<ArtistSublistItem>> =
+        apiGet<ArtistSublistResponse>("/artist/sublist", mapOf("limit" to limit))
+            .map { it.data.list }
+
+    /** 关注/取关歌手（sub=true 关注） */
+    suspend fun artistSub(id: Long, sub: Boolean): Result<ApiCodeResponse> =
+        apiPost<ApiCodeResponse>("/artist/sub", mapOf("id" to id, "sub" to if (sub) 1 else 0))
+            .mapCatching { it.requireCode200() }
+
+    /** 已收藏专辑列表 */
+    suspend fun albumSubList(limit: Int = 1000): Result<List<SubAlbum>> =
+        apiGet<AlbumSubscribeListResponse>("/album/sublist", mapOf("limit" to limit))
+            .map { it.data.list }
+
+    /** 收藏/取消收藏专辑（sub=true 收藏） */
+    suspend fun albumSub(id: Long, sub: Boolean): Result<ApiCodeResponse> =
+        apiPost<ApiCodeResponse>("/album/sub", mapOf("id" to id, "sub" to if (sub) 1 else 0))
+            .mapCatching { it.requireCode200() }
+
+    private fun ApiCodeResponse.requireCode200(): ApiCodeResponse {
+        if (code == 200) return this
+        val reason = message?.takeIf(String::isNotBlank)
+            ?: msg?.takeIf(String::isNotBlank)
+            ?: "服务端返回业务码 $code"
+        throw IllegalStateException(reason)
     }
 
     suspend fun cloudSong(offset: Int, limit: Int): Result<CloudSongResponse> =

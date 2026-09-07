@@ -17,6 +17,7 @@ import com.rcmiku.music.ui.screen.AlbumSublistScreen
 import com.rcmiku.music.ui.screen.ArtistScreen
 import com.rcmiku.music.ui.screen.CloudSongScreen
 import com.rcmiku.music.ui.screen.ExploreScreen
+import com.rcmiku.music.ui.screen.FMScreen
 import com.rcmiku.music.ui.screen.HomeScreen
 import com.rcmiku.music.ui.screen.LibraryScreen
 import com.rcmiku.music.ui.screen.ListScreen
@@ -64,6 +65,7 @@ fun NavGraph(
             composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
             composable(Screen.Login.route) { LoginScreen(navController = navController) }
             composable(Screen.Search.route) { SearchScreen(navController = navController) }
+            composable(Screen.Fm.route) { FMScreen(navController = navController) }
             composable<PlaylistNav> {
                 PlaylistScreen(
                     navController = navController,

@@ -4,17 +4,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -73,6 +78,8 @@ fun ArtistScreen(
 ) {
     val artistHeadInfoState by artistScreenViewModel.artistHeadInfo.collectAsState()
     val artistTopSongState by artistScreenViewModel.artistTopSong.collectAsState()
+    val subscribed by artistScreenViewModel.subscribed.collectAsState()
+    val subToggling by artistScreenViewModel.subToggling.collectAsState()
     val artistAlbumList = artistScreenViewModel.artistAlbumList.collectAsLazyPagingItems()
     val listState = rememberLazyListState()
     val showPlaylistTitle by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
@@ -102,20 +109,46 @@ fun ArtistScreen(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.aspectRatio(4f / 3f)
                 )
-                artistHeadInfoState?.data?.artist?.name?.let {
-                    Box(
-                        Modifier
-                            .padding(6.dp)
-                            .clip(MaterialTheme.shapes.small)
-                            .background(color = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text(
-                            text = it,
-                            Modifier.padding(4.dp),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
+                Row(
+                    modifier = Modifier.padding(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    artistHeadInfoState?.data?.artist?.name?.let {
+                        Box(
+                            Modifier
+                                .clip(MaterialTheme.shapes.small)
+                                .background(color = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text(
+                                text = it,
+                                Modifier.padding(4.dp),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                    subscribed?.let { isSubbed ->
+                        Spacer(Modifier.width(8.dp))
+                        if (isSubbed) {
+                            OutlinedButton(
+                                onClick = { artistScreenViewModel.toggleSub() },
+                                enabled = !subToggling
+                            ) {
+                                Text(text = stringResource(R.string.followed))
+                            }
+                        } else {
+                            Button(
+                                onClick = { artistScreenViewModel.toggleSub() },
+                                enabled = !subToggling,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            ) {
+                                Text(text = stringResource(R.string.follow))
+                            }
+                        }
                     }
                 }
             }

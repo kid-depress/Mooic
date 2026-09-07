@@ -1,5 +1,28 @@
 <resources>
     <string name="app_name">Mooic</string>
+    <string name="personal_fm">私人FM</string>
+    <string name="fm_entry_hint">根据你的口味为你推荐歌曲</string>
+    <string name="fm_hint">为你推荐 %1$d 首歌曲，点击播放或换一批</string>
+    <string name="heart_beat_mode">心动模式</string>
+    <string name="refresh">刷新</string>
+    <string name="load_failed">加载失败，请点击右上角刷新重试</string>
+    <string name="download">下载</string>
+    <string name="quality_standard">标准 (128kbps)</string>
+    <string name="quality_higher">较高 (192kbps)</string>
+    <string name="quality_exhigh">极高 (320kbps)</string>
+    <string name="quality_lossless">无损 (FLAC)</string>
+    <string name="quality_hires">母带 (Hi-Res)</string>
+    <string name="download_started">已开始下载，进度可在系统通知栏查看</string>
+    <string name="download_failed">下载失败，请重试</string>
+    <string name="follow">关注</string>
+    <string name="followed">已关注</string>
+    <string name="followed_success">已关注歌手</string>
+    <string name="unfollowed">已取消关注</string>
+    <string name="collect">收藏</string>
+    <string name="collected_success">已收藏专辑</string>
+    <string name="uncollected">已取消收藏</string>
+    <string name="operate_failed">操作失败，请重试</string>
+    <string name="album_click_hint">点击专辑卡片可进入专辑页</string>
     <string name="login">登录</string>
     <string name="home">主页</string>
     <string name="explore">探索</string>
@@ -90,4 +113,11 @@
     <string name="reset_default">重置默认</string>
     <string name="server_settings">服务器设置</string>
     <string name="click_to_login">点击登录</string>
+    <string name="comment">评论</string>
+    <string name="comment_hot">热门评论</string>
+    <string name="comment_latest">最新评论</string>
+    <string name="comment_count">共 %1$d 条评论</string>
+    <string name="comment_empty">暂无评论</string>
+    <string name="comment_load_failed">评论加载失败</string>
+    <string name="allow_simultaneous_playback">允许与其他应用同时播放</string>
 </resources>

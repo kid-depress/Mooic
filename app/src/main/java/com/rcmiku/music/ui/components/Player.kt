@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +70,7 @@ import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.ui.icons.Album
 import com.rcmiku.music.ui.icons.Artist
 import com.rcmiku.music.ui.icons.ChevronDown
+import com.rcmiku.music.ui.icons.Comment
 import com.rcmiku.music.ui.icons.Favorite
 import com.rcmiku.music.ui.icons.FavoriteFill
 import com.rcmiku.music.ui.icons.PauseFill
@@ -84,6 +88,7 @@ import com.rcmiku.ncmapi.model.Song
 import com.rcmiku.ncmapi.model.SongAlbum
 import com.rcmiku.ncmapi.utils.json
 import kotlinx.coroutines.flow.map
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,6 +129,7 @@ fun Player(
     var currentSong by remember { mutableStateOf<Song?>(null) }
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var openPlayerBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var openCommentSheet by rememberSaveable { mutableStateOf(false) }
     val shuffleMode = playerState?.shuffleModeEnabled == true
 
     LaunchedEffect(mediaId) {
@@ -136,6 +142,32 @@ fun Player(
 
     Surface(
         modifier = modifier
+            .pointerInput(Unit) {
+                var dragDistance = Offset.Zero
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        dragDistance += dragAmount
+                    },
+                    onDragEnd = {
+                        val threshold = 100.dp.toPx()
+                        val dx = dragDistance.x
+                        val dy = dragDistance.y
+                        when {
+                            abs(dy) > abs(dx) && abs(dy) > threshold -> {
+                                if (dy < 0) mediaController?.seekToNext()
+                                else mediaController?.seekToPrevious()
+                            }
+
+                            abs(dx) > abs(dy) && abs(dx) > threshold -> {
+                                if (dx < 0) onClick()
+                                else openPlayerBottomSheet = true
+                            }
+                        }
+                        dragDistance = Offset.Zero
+                    }
+                )
+            }
             .clickable {
                 onContainerClick()
             }
@@ -237,6 +269,9 @@ fun Player(
                                 if (songIds.contains(mediaId?.toLong())) FavoriteFill else Favorite,
                                 contentDescription = null
                             )
+                        }
+                        FilledIconButton(onClick = { openCommentSheet = true }) {
+                            Icon(imageVector = Comment, contentDescription = null)
                         }
                         FilledIconButton(onClick = { openPlayerBottomSheet = true }) {
                             Icon(imageVector = Icons.Outlined.MoreVert, contentDescription = null)
@@ -372,122 +407,40 @@ fun Player(
         }
 
 
-        currentSong?.let {
-            ArtistBottomSheet(
-                currentSong = it,
+        currentSong?.let { song ->
+            ArtistInfoSheet(
+                song = song,
                 onClick = { artist ->
                     navController.navigate(ArtistNav(artistId = artist.id))
                     onBackPressed()
-                }, onDismiss = {
+                },
+                onDismiss = {
                     openBottomSheet = false
                 },
-                openBottomSheet = openBottomSheet,
-                onAlbumClick = { album ->
-                    navController.navigate(AlbumNav(albumId = album.id))
-                    onBackPressed()
-                })
+                openBottomSheet = openBottomSheet
+            )
         }
 
         PlayerMenuBottomSheet(
             currentSong = currentSong,
             onDismiss = { openPlayerBottomSheet = false },
-            openBottomSheet = openPlayerBottomSheet
+            openBottomSheet = openPlayerBottomSheet,
+            onArtistClick = { artist ->
+                navController.navigate(ArtistNav(artistId = artist.id))
+                onBackPressed()
+            },
+            onAlbumClick = { album ->
+                navController.navigate(AlbumNav(albumId = album.id))
+                onBackPressed()
+            }
+        )
+
+        CommentBottomSheet(
+            songId = currentSong?.id ?: mediaId?.substringBefore('?')?.toLongOrNull(),
+            songName = mediaMetadata.title?.toString(),
+            onDismiss = { openCommentSheet = false },
+            openBottomSheet = openCommentSheet
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ArtistBottomSheet(
-    currentSong: Song,
-    onClick: (Artist) -> Unit,
-    openBottomSheet: Boolean,
-    onDismiss: () -> Unit,
-    onAlbumClick: (SongAlbum) -> Unit,
-) {
-    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    LaunchedEffect(openBottomSheet) {
-        if (openBottomSheet) {
-            bottomSheetState.show()
-        } else {
-            bottomSheetState.hide()
-        }
-    }
-
-    if (openBottomSheet) {
-        ModalBottomSheet(
-            modifier = Modifier.statusBarsPadding(),
-            onDismissRequest = onDismiss,
-            sheetState = bottomSheetState
-        ) {
-            LazyColumn(
-                Modifier.padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                itemsIndexed(currentSong.ar) { index, artist ->
-                    val shape = getItemShape(
-                        prevItem = currentSong.ar.getOrNull(index - 1),
-                        nextItem = currentSong.ar.getOrNull(index + 1),
-                        corner = 16.dp,
-                        subCorner = 4.dp,
-                    )
-                    Card(
-                        shape = shape,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .clickable {
-                                    onDismiss()
-                                    onClick(artist)
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Artist,
-                                contentDescription = null,
-                                Modifier.padding(horizontal = 12.dp)
-                            )
-                            Text(text = artist.name, style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
-                }
-                item {
-                    Spacer(Modifier.height(4.dp))
-                }
-                item {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .clickable {
-                                    onDismiss()
-                                    onAlbumClick(currentSong.al)
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Album,
-                                contentDescription = null,
-                                Modifier.padding(horizontal = 12.dp)
-                            )
-                            Text(
-                                text = currentSong.al.name,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-                    }
-                }
-                item {
-                    Spacer(Modifier.height(12.dp))
-                }
-            }
-        }
-    }
-}

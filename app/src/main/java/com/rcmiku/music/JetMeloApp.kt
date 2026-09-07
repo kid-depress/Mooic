@@ -13,12 +13,14 @@ import coil3.request.crossfade
 import com.rcmiku.music.constants.apiBaseUrlKey
 import com.rcmiku.music.constants.ncmCookieKey
 import com.rcmiku.music.constants.unblockBaseUrlKey
+import com.rcmiku.music.constants.userIdKye
 import com.rcmiku.music.playback.PlayerController
 import com.rcmiku.music.utils.SongListUtil
 import com.rcmiku.music.utils.UserAgentUtil
 import com.rcmiku.music.utils.dataStore
 import com.rcmiku.ncmapi.api.API_BASE_URL
 import com.rcmiku.ncmapi.api.UNBLOCK_BASE_URL
+import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.utils.CookieKeys
 import com.rcmiku.ncmapi.utils.CookieProvider
 import com.rcmiku.ncmapi.utils.FileProvider
@@ -30,8 +32,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import androidx.datastore.preferences.core.edit
 
 @HiltAndroidApp
 class JetMeloApp : Application(), SingletonImageLoader.Factory {
@@ -56,6 +60,7 @@ class JetMeloApp : Application(), SingletonImageLoader.Factory {
                         ?.let { runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrNull() }
                     if (cookieMap?.containsKey(CookieKeys.MUSIC_U) == true) {
                         CookieProvider.init(cookieMap)
+                        ensureUserIdPersisted()
                     } else {
                         CookieProvider.clear()
                     }
@@ -71,6 +76,21 @@ class JetMeloApp : Application(), SingletonImageLoader.Factory {
                     if (!apiUrl.isNullOrEmpty()) API_BASE_URL = apiUrl
                     if (!unblockUrl.isNullOrEmpty()) UNBLOCK_BASE_URL = unblockUrl
                 }
+        }
+    }
+
+    /**
+     * 已登录但 userId 缺失（历史版本登录时未持久化）时，补拉用户信息写入。
+     * 供"添加到歌单"、喜欢等依赖 userId 的功能使用。
+     */
+    private suspend fun ensureUserIdPersisted() {
+        val storedUserId = dataStore.data.first()[userIdKye] ?: 0L
+        if (storedUserId > 0) return
+        runCatching {
+            val userId = AccountApi.accountInfo().getOrNull()?.account?.profile?.userId ?: return
+            if (userId > 0) {
+                dataStore.edit { it[userIdKye] = userId }
+            }
         }
     }
 

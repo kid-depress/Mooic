@@ -78,6 +78,7 @@ fun SongMenuBottomSheet(
     navController: NavHostController,
 ) {
     var openArtistBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var openAlbumInfoSheet by rememberSaveable { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var openSongListBottomSheet by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
@@ -197,7 +198,7 @@ fun SongMenuBottomSheet(
                                 .fillMaxWidth()
                                 .height(64.dp)
                                 .clickable {
-                                    openArtistBottomSheet = true
+                                    openAlbumInfoSheet = true
                                     onDismiss()
                                 }, verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -388,19 +389,28 @@ fun SongMenuBottomSheet(
         }
     }
 
-    song?.let {
-        ArtistBottomSheet(
-            currentSong = it,
+    song?.let { song ->
+        ArtistInfoSheet(
+            song = song,
             onClick = { artist ->
                 navController.navigate(ArtistNav(artistId = artist.id))
-            }, onDismiss = {
+            },
+            onDismiss = {
                 openArtistBottomSheet = false
             },
-            openBottomSheet = openArtistBottomSheet,
-            onAlbumClick = { album ->
+            openBottomSheet = openArtistBottomSheet
+        )
+        AlbumInfoSheet(
+            song = song,
+            onClick = { album ->
                 navController.navigate(AlbumNav(albumId = album.id))
-            })
-        SongListBottomSheet(song = it, onDismiss = {
+            },
+            onDismiss = {
+                openAlbumInfoSheet = false
+            },
+            openBottomSheet = openAlbumInfoSheet
+        )
+        SongListBottomSheet(song = song, onDismiss = {
             openSongListBottomSheet = false
         }, openBottomSheet = openSongListBottomSheet)
     }
