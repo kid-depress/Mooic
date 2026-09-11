@@ -24,6 +24,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "JetMelo"
+rootProject.name = "Mooic"
 include(":app")
 include(":ncmapi")

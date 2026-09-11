@@ -7,6 +7,7 @@ import com.rcmiku.ncmapi.api.apiGet
 import com.rcmiku.ncmapi.model.LyricResponse
 import com.rcmiku.ncmapi.model.SongUrl
 import com.rcmiku.ncmapi.model.SongUrlResponse
+import com.rcmiku.ncmapi.utils.DebugLog
 import io.ktor.client.request.parameter
 import io.ktor.client.request.request
 import io.ktor.client.statement.bodyAsText
@@ -24,34 +25,32 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
 object PlayerApi {
+    /**
+     * Third-party sources supported by UnblockNeteaseMusic-utils.
+     * The unblock/match service expects one source name per request.
+     */
     private val unblockSources = listOf(
-        "bikonoo",
-        "qijieya",
-        "msls",
-        "unm",
-        "gdmusic",
         "byfuns",
-        "whitisnot",
-        "baka"
+        "ddyr",
+        "gdmusic",
+        "msls",
+        "oi",
+        "qijieya",
+        "unm"
     )
 
     suspend fun songPlayUrlV1(songId: String, songLevel: SongLevel = SongLevel.STANDARD): Result<SongUrlResponse> {
         val parsed = parseSongId(songId)
         val realId = parsed.id
+        DebugLog.append("resolve song=$realId restricted=${parsed.shouldUseApiUnblock()}")
 
         return if (parsed.shouldUseApiUnblock()) {
-            // VIP/restricted songs are resolved by api-enhanced before ExoPlayer starts playback.
-            val apiMatchResult = tryApiEnhancedMatchUrl(realId)
-            if (apiMatchResult.hasPlayableUrl()) {
-                return apiMatchResult
-            }
-
             val unblockResult = tryUnblockUrl(realId)
             if (unblockResult.hasPlayableUrl()) {
                 return unblockResult
             }
 
-            Result.failure(Exception("No full unlocked URL found"))
+            tryApiEnhancedMatchUrl(realId)
         } else {
             val apiResult = apiGet<SongUrlResponse>(
                 "/song/url/v1",
@@ -60,12 +59,7 @@ object PlayerApi {
             if (apiResult.hasPlayableUrl()) {
                 apiResult
             } else {
-                val apiUnblockResult = tryApiEnhancedUnblockUrl(realId, songLevel)
-                if (apiUnblockResult.hasPlayableUrl()) {
-                    apiUnblockResult
-                } else {
-                    tryUnblockUrl(realId)
-                }
+                tryUnblockUrl(realId)
             }
         }
     }
@@ -111,47 +105,28 @@ object PlayerApi {
     }
 
     private suspend fun tryApiEnhancedMatchUrl(songId: String): Result<SongUrlResponse> =
-        tryMatchUrl("${API_BASE_URL.trimEnd('/')}/song/url/match", songId)
-
-    private suspend fun tryApiEnhancedUnblockUrl(
-        songId: String,
-        songLevel: SongLevel
-    ): Result<SongUrlResponse> {
-        return apiGet(
-            "/song/url/v1",
-            mapOf(
-                "id" to songId,
-                "level" to songLevel.value,
-                "unblock" to "true"
-            )
-        )
-    }
+        tryMatchedSources("${API_BASE_URL.trimEnd('/')}/song/url/match", songId)
 
     private suspend fun tryUnblockUrl(songId: String): Result<SongUrlResponse> =
-        tryMatchUrl("${UNBLOCK_BASE_URL.trimEnd('/')}/match", songId)
+        tryMatchedSources("${UNBLOCK_BASE_URL.trimEnd('/')}/match", songId)
 
-    private suspend fun tryMatchUrl(endpoint: String, songId: String): Result<SongUrlResponse> {
-        var lastError: Exception? = null
+    private suspend fun tryMatchedSources(endpoint: String, songId: String): Result<SongUrlResponse> {
         unblockSources.forEach { source ->
-            try {
-                requestMatchedUrl(endpoint, songId, source)?.let { data ->
-                    return Result.success(
-                        SongUrlResponse(
-                            data = listOf(
-                                SongUrl(
-                                    id = songId.toLongOrNull() ?: 0L,
-                                    url = data.url,
-                                    br = data.br
-                                )
+            requestMatchedUrl(endpoint, songId, source)?.let { data ->
+                return Result.success(
+                    SongUrlResponse(
+                        data = listOf(
+                            SongUrl(
+                                id = songId.toLongOrNull() ?: 0L,
+                                url = data.url,
+                                br = data.br
                             )
                         )
                     )
-                }
-            } catch (e: Exception) {
-                lastError = e
+                )
             }
         }
-        return Result.failure(lastError ?: Exception("No full unlocked URL found"))
+        return Result.failure(Exception("No full unlocked URL found"))
     }
 
     private suspend fun requestMatchedUrl(
@@ -159,6 +134,8 @@ object PlayerApi {
         songId: String,
         source: String
     ): UnblockData? {
+        val startedAt = System.currentTimeMillis()
+        DebugLog.append("request endpoint=$endpoint song=$songId source=$source")
         return try {
             val response = apiClient.request(endpoint) {
                 method = HttpMethod.Get
@@ -166,11 +143,20 @@ object PlayerApi {
                 parameter("source", source)
             }
             if (response.status.isSuccess()) {
-                parseUnblockResponse(response.bodyAsText())
+                val body = response.bodyAsText()
+                val data = parseUnblockResponse(body)
+                DebugLog.append(
+                    "response endpoint=$endpoint song=$songId source=$source " +
+                        "success=${data != null} br=${data?.br ?: 0} " +
+                        "elapsed=${System.currentTimeMillis() - startedAt}ms"
+                )
+                data
             } else {
+                DebugLog.append("response endpoint=$endpoint song=$songId source=$source http=${response.status.value} elapsed=${System.currentTimeMillis() - startedAt}ms")
                 null
             }
         } catch (e: Exception) {
+            DebugLog.append("error endpoint=$endpoint song=$songId source=$source type=${e.javaClass.simpleName} message=${e.message?.take(160)} elapsed=${System.currentTimeMillis() - startedAt}ms")
             null
         }
     }
@@ -187,10 +173,12 @@ object PlayerApi {
             val code = jsonObj["code"]?.jsonPrimitive?.intOrNull
             if (code != null && code != 200) return null
 
-            val proxyUrl = jsonObj["proxyUrl"]?.jsonPrimitive?.contentOrNull
-                ?.takeIf { it.isNotBlank() }
             val data = extractMatchedData(jsonObj["data"])
-            val playableUrl = proxyUrl ?: data?.url?.takeIf { it.isNotBlank() }
+            // Prefer the validated matched URL. A top-level proxyUrl may point to a
+            // trial/proxy stream and must not bypass the freeTrialInfo/time checks.
+            val proxyUrl = jsonObj["proxyUrl"]?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() && !isLikelyTrialUrl(it) }
+            val playableUrl = data?.url ?: proxyUrl
             playableUrl?.let { UnblockData(it, data?.br ?: 320000) }
         } catch (e: Exception) {
             null

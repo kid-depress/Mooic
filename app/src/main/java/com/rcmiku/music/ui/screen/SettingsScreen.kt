@@ -1,6 +1,7 @@
 package com.rcmiku.music.ui.screen
 
 import android.os.Build
+import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -73,11 +75,13 @@ import com.rcmiku.music.utils.getItemShape
 import com.rcmiku.music.utils.rememberEnumPreference
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.ncmapi.api.player.SongLevel
+import com.rcmiku.ncmapi.utils.DebugLog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavHostController) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
 
     var use40DpIcon by rememberPreference(use40DpIconKey, false)
     var audioQuality by rememberEnumPreference(audioQualityKey, defaultValue = SongLevel.STANDARD)
@@ -186,6 +190,21 @@ fun SettingsScreen(navController: NavHostController) {
             title = stringResource(R.string.source_code),
             imageVector = Github,
             onClick = { uriHandler.openUri("https://github.com/kid-depress/Mooic") }
+        ),
+        SettingItemData(
+            title = stringResource(R.string.export_debug_log),
+            imageVector = Dns,
+            onClick = {
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.debug_log_subject))
+                    putExtra(
+                        Intent.EXTRA_TEXT,
+                        DebugLog.export().ifBlank { context.getString(R.string.no_debug_log) }
+                    )
+                }
+                context.startActivity(Intent.createChooser(shareIntent, null))
+            }
         )
     )
 

@@ -90,4 +90,7 @@
     <string name="reset_default">重置默认</string>
     <string name="server_settings">服务器设置</string>
     <string name="click_to_login">点击登录</string>
+    <string name="export_debug_log">导出调试日志</string>
+    <string name="debug_log_subject">Mooic 调试日志</string>
+    <string name="no_debug_log">暂无调试日志</string>
 </resources>
