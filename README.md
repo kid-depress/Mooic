@@ -20,7 +20,7 @@
 ## 说明
 
 - 本项目为本人个人项目，仅用于个人学习研究，请勿用于商业用途。
-- 本项目大部份界面和功能直接参考了 [JetMelo](https://github.com/rcmiku/JetMelo), api接口来自[api-enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)
+- 本项目大部分界面和功能直接参考了 [JetMelo](https://github.com/rcmiku/JetMelo), api接口来自[api-enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)
 - 本项目代码都是英文字母的随机组合,不代表个人观点
 
 ## 功能特性
