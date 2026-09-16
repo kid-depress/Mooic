@@ -93,4 +93,10 @@
     <string name="export_debug_log">导出调试日志</string>
     <string name="debug_log_subject">Mooic 调试日志</string>
     <string name="no_debug_log">暂无调试日志</string>
+    <string name="cache_management">缓存管理</string>
+    <string name="cache_limit">缓存上限</string>
+    <string name="audio_cache_usage">音频缓存已用 %s</string>
+    <string name="cache_summary">音频缓存：已用 %1$s · 上限 %2$s</string>
+    <string name="clear_cache">清除缓存</string>
+    <string name="done">完成</string>
 </resources>
