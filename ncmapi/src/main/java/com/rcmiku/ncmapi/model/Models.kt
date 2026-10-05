@@ -472,3 +472,33 @@ data class ApiCodeResponse(
     val message: String? = null,
     val msg: String? = null
 )
+
+// ========== Login models ==========
+
+@Serializable
+data class QrKeyResponse(
+    val data: QrKeyData = QrKeyData()
+)
+
+@Serializable
+data class QrKeyData(
+    val unikey: String = ""
+)
+
+@Serializable
+data class QrCreateResponse(
+    val data: QrCreateData = QrCreateData()
+)
+
+@Serializable
+data class QrCreateData(
+    val qrurl: String = "",
+    val qrimg: String = ""
+)
+
+@Serializable
+data class QrCheckResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val cookie: String? = null
+)

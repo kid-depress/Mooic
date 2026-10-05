@@ -1,5 +1,6 @@
 package com.rcmiku.music.ui.screen
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -54,7 +55,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    context: Context
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -75,6 +78,15 @@ fun MainScreen() {
         (playerState?.player?.mediaItemCount ?: 0) != 0
     val currentMediaId = playerState?.currentMediaItem?.mediaId
     var currentPlayMediaId by rememberPreference(currentPlayMediaIdKey, 0)
+
+    fun Context.isTabletByInch(): Boolean {
+        val metrics = resources.displayMetrics
+        val widthInches = metrics.widthPixels / metrics.xdpi
+        val heightInches = metrics.heightPixels / metrics.ydpi
+        val diagonal = Math.sqrt((widthInches * widthInches + heightInches * heightInches).toDouble())
+        return diagonal >= 7.0
+    }
+
     LaunchedEffect(playerState, isPlaying, lifecycleOwner) {
         val player = playerState?.player ?: return@LaunchedEffect
         position = player.currentPosition
@@ -170,14 +182,26 @@ fun MainScreen() {
                         .windowInsetsPadding(WindowInsets(bottom = bottomPadding)),
                 ) {
                     playerState?.mediaMetadata?.let {
-                        PlayerTransform(
-                            mediaMetadata = it, position = position, duration = duration,
-                            onBackPressed = { showPlayer = false },
-                            onClick = { showPlayer = true },
-                            onPositionUpdate = { updatePosition ->
-                                position = updatePosition
-                            }, navController = navController
-                        )
+                        if (context.isTabletByInch()){
+                            PlayerTransformTablet(
+                                mediaMetadata = it, position = position, duration = duration,
+                                onBackPressed = { showPlayer = false },
+                                onClick = { showPlayer = true },
+                                onPositionUpdate = { updatePosition ->
+                                    position = updatePosition
+                                }, navController = navController
+                            )
+                        }
+                        else {
+                            PlayerTransform(
+                                mediaMetadata = it, position = position, duration = duration,
+                                onBackPressed = { showPlayer = false },
+                                onClick = { showPlayer = true },
+                                onPositionUpdate = { updatePosition ->
+                                    position = updatePosition
+                                }, navController = navController
+                            )
+                        }
 
                     }
                 }

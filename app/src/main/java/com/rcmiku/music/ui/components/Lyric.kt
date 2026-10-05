@@ -14,6 +14,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -68,7 +69,8 @@ fun Lyric(
     imageModifier: Modifier = Modifier,
     mediaMetadata: MediaMetadata,
     onBackPressed: () -> Unit = {},
-    lyricViewModel: LyricViewModel = hiltViewModel()
+    lyricViewModel: LyricViewModel = hiltViewModel(),
+    isTablet: Boolean = false
 ) {
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
@@ -76,33 +78,32 @@ fun Lyric(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val lyric by lyricViewModel.lyric.collectAsState()
-    val lrcLine = lyric?.lrc?.lyric?.parseLrc()
+
+    val lrcLines = remember(lyric?.lrc?.lyric) {
+        lyric?.lrc?.lyric?.parseLrc().orEmpty()
+    }
+    val cnMap = remember(lyric?.tlyric?.lyric) {
+        lyric?.tlyric?.lyric?.parseLrc()
+            ?.associate { it.time to it.text }
+            .orEmpty()
+    }
+
     var currentIndex by remember { mutableIntStateOf(0) }
     var autoScrollEnabled by remember { mutableStateOf(true) }
 
     LaunchedEffect(currentMediaId) {
         currentIndex = 0
-        coroutineScope.launch {
-            currentMediaId?.let {
-                lyricViewModel.fetchLyric(it.toLong())
-            }
-        }
+        currentMediaId?.let { lyricViewModel.fetchLyric(it.toLong()) }
     }
 
-    BackHandler {
-        onBackPressed()
-    }
-
+    if (!isTablet) BackHandler { onBackPressed() }
     KeepScreenOn()
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxHeight(),
+        modifier = if(!isTablet) Modifier.fillMaxHeight() else modifier.fillMaxHeight()
     ) {
-        Column(
-            modifier = Modifier
-                .statusBarsPadding()
-        ) {
+        Column(modifier = Modifier.statusBarsPadding()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -110,64 +111,64 @@ fun Lyric(
                     .clip(MaterialTheme.shapes.small)
                     .clickable { onBackPressed() }
             ) {
-                AsyncImage(
-                    model = mediaMetadata.artworkUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = imageModifier
-                        .size(MediaItemHeight)
-                        .clip(MaterialTheme.shapes.small)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .then(modifier)
-                ) {
-                    Text(
-                        text = mediaMetadata.title.toString(),
-                        maxLines = 1,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.basicMarquee()
+                if(!isTablet) {
+                    AsyncImage(
+                        model = mediaMetadata.artworkUri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = imageModifier
+                            .size(MediaItemHeight)
+                            .clip(MaterialTheme.shapes.small)
                     )
-                    Text(
-                        text = mediaMetadata.artist.toString(),
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.basicMarquee()
-                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(modifier)
+                    ) {
+                        Text(
+                            text = mediaMetadata.title.toString(),
+                            maxLines = 1,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.basicMarquee()
+                        )
+                        Text(
+                            text = mediaMetadata.artist.toString(),
+                            maxLines = 1,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.basicMarquee()
+                        )
+                    }
                 }
             }
 
-            lrcLine?.let { lrcLines ->
-
+            if (lrcLines.isNotEmpty()) {
                 LaunchedEffect(listState.isScrollInProgress) {
                     autoScrollEnabled = !listState.isScrollInProgress
                 }
 
-                LaunchedEffect(position) {
+                LaunchedEffect(position, lrcLines) {
                     val index = lrcLines.indexOfLast { it.time <= position }
-                    if (index != currentIndex) {
+                    if (index != currentIndex && index >= 0) {
                         currentIndex = index
                         if (autoScrollEnabled) {
                             coroutineScope.launch {
-                                if (index > 0) {
-                                    val targetIndex = maxOf(currentIndex - 2, 0)
-                                    val visibleItem =
-                                        listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-                                    if (visibleItem == null) {
-                                        listState.scrollToItem(targetIndex)
-                                    } else {
-                                        val itemOffset = visibleItem.offset
-                                        listState.animateScrollBy(
-                                            itemOffset.toFloat(),
-                                            animationSpec = tween(
-                                                durationMillis = 500,
-                                                easing = EaseInOutCubic
-                                            )
-                                        )
-                                    }
+                                val layoutInfo = listState.layoutInfo
+                                val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+                                val desiredOffset = (viewportHeight * 0.3f).toInt()
+                                val visibleItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+                                if (visibleItem != null) {
+                                    val scrollAmount = visibleItem.offset - desiredOffset
+                                    listState.animateScrollBy(
+                                        scrollAmount.toFloat(),
+                                        animationSpec = tween(400, easing = EaseInOutCubic)
+                                    )
+                                } else {
+                                    listState.scrollToItem(
+                                        index = index,
+                                        scrollOffset = -desiredOffset
+                                    )
                                 }
                             }
                         }
@@ -184,44 +185,61 @@ fun Lyric(
                     items(
                         count = lrcLines.size,
                     ) { index ->
+                        val line = lrcLines[index]
                         val isCurrent = index == currentIndex
-                        val currentText = lrcLines[index].text.isNotEmpty()
+                        val hasText = line.text.isNotEmpty()
 
-                        if (currentText)
-                            Text(
-                                text = lrcLines[index].text,
-                                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 24.sp,
-                                lineHeight = 1.2.em,
+                        if (hasText) {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(MaterialTheme.shapes.small)
                                     .clickable {
-                                        lrcLines[index].time.let {
-                                            mediaController?.seekTo(it)
-                                            coroutineScope.launch {
-                                                currentIndex = index
-                                            }
-                                        }
+                                        mediaController?.seekTo(line.time)
+                                        currentIndex = index
                                     }
                                     .padding(vertical = 8.dp, horizontal = 4.dp)
                                     .alpha(if (isCurrent) 1f else 0.5f)
-                            )
-                        else
-                            Row(modifier = Modifier.padding(horizontal = 12.dp)) {
-                                if (isCurrent) {
-                                    lrcLines.getOrNull(index + 1)?.time?.let { time ->
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = line.text,
+                                        color = if (isCurrent) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.secondary,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 24.sp,
+                                        lineHeight = 1.2.em,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    cnMap[line.time]
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.let { cnText ->
+                                            Text(
+                                                text = cnText,
+                                                color = MaterialTheme.colorScheme.outline,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 14.sp,
+                                                lineHeight = 1.2.em,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 4.dp)
+                                            )
+                                        }
+                                }
+                            }
+                        } else {
+                            if (isCurrent) {
+                                Row(modifier = Modifier.padding(horizontal = 12.dp)) {
+                                    lrcLines.getOrNull(index + 1)?.time?.let { nextTime ->
                                         ThreeDotsAnimation(
-                                            times = lrcLines[index].time to time,
+                                            times = line.time to nextTime
                                         )
                                     }
                                 }
                             }
+                        }
                     }
-                    item {
-                        Spacer(Modifier.padding(vertical = 24.dp))
-                    }
+                    item { Spacer(Modifier.padding(vertical = 24.dp)) }
                 }
             }
         }

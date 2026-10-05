@@ -1,0 +1,44 @@
+Index: app/src/main/java/com/rcmiku/music/ui/screen/PlayerTransformTablet.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/rcmiku/music/ui/screen/PlayerTransformTablet.kt b/app/src/main/java/com/rcmiku/music/ui/screen/PlayerTransformTablet.kt
+--- a/app/src/main/java/com/rcmiku/music/ui/screen/PlayerTransformTablet.kt
++++ b/app/src/main/java/com/rcmiku/music/ui/screen/PlayerTransformTablet.kt	(date 1785748214333)
+@@ -2,6 +2,7 @@
+ 
+ import androidx.compose.animation.AnimatedContent
+ import androidx.compose.animation.ExperimentalSharedTransitionApi
++import androidx.activity.compose.BackHandler
+ import androidx.compose.animation.SharedTransitionLayout
+ import androidx.compose.animation.SharedTransitionScope
+ import androidx.compose.animation.fadeIn
+@@ -45,6 +46,10 @@
+         mutableIntStateOf(MINI_PLAYER)
+     }
+ 
++    BackHandler(enabled = show != MINI_PLAYER) {
++        show = MINI_PLAYER
++    }
++
+     SharedTransitionLayout(
+         modifier = Modifier
+             .background(MaterialTheme.colorScheme.surfaceContainer)
+Index: app/src/main/java/com/rcmiku/music/ui/components/Lyric.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/rcmiku/music/ui/components/Lyric.kt b/app/src/main/java/com/rcmiku/music/ui/components/Lyric.kt
+--- a/app/src/main/java/com/rcmiku/music/ui/components/Lyric.kt
++++ b/app/src/main/java/com/rcmiku/music/ui/components/Lyric.kt	(date 1785748214333)
+@@ -96,7 +96,7 @@
+         currentMediaId?.let { lyricViewModel.fetchLyric(it.toLong()) }
+     }
+ 
+-    if (!isTablet) BackHandler { onBackPressed() }
++    BackHandler { onBackPressed() }
+     KeepScreenOn()
+ 
+     Surface(

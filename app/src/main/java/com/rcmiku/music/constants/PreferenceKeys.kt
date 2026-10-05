@@ -1,6 +1,7 @@
 package com.rcmiku.music.constants
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 
@@ -13,4 +14,6 @@ val dynamicThemeColorKey = booleanPreferencesKey("dynamicThemeColor")
 val themeSeedColorKey = stringPreferencesKey("themeSeedColor")
 val userIdKye = longPreferencesKey("userId")
 val unblockBaseUrlKey = stringPreferencesKey("unblockBaseUrl")
+val theme = intPreferencesKey("theme")
+val watchMode = booleanPreferencesKey("watch_mode")
 val audioCacheMaxSizeKey = longPreferencesKey("audioCacheMaxSize")

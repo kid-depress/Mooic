@@ -1,5 +1,7 @@
 package com.rcmiku.music.ui.screen
 
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -40,12 +42,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import coil3.decode.ImageSource
 import androidx.media3.common.util.UnstableApi
 import com.rcmiku.music.R
 import com.rcmiku.music.constants.SettingItemCorner
@@ -56,9 +60,11 @@ import com.rcmiku.music.constants.audioQualityKey
 import com.rcmiku.music.constants.autoSkipNextOnErrorKey
 import com.rcmiku.music.constants.dynamicThemeColorKey
 import com.rcmiku.music.constants.ncmCookieKey
+import com.rcmiku.music.constants.theme
 import com.rcmiku.music.constants.themeSeedColorKey
 import com.rcmiku.music.constants.unblockBaseUrlKey
 import com.rcmiku.music.constants.use40DpIconKey
+import com.rcmiku.music.constants.watchMode
 import com.rcmiku.music.ui.components.Dialog
 import com.rcmiku.music.ui.components.CacheManagementDialog
 import com.rcmiku.music.ui.components.SongQualityDialog
@@ -75,6 +81,7 @@ import com.rcmiku.music.ui.icons.PlayPause
 import com.rcmiku.music.ui.icons.SkipNext
 import com.rcmiku.music.ui.icons.UserRound
 import com.rcmiku.music.ui.icons.VipUser
+import com.rcmiku.music.ui.icons.Watch
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.AppThemeSeed
 import com.rcmiku.music.playback.AudioCache
@@ -100,6 +107,8 @@ fun SettingsScreen(navController: NavHostController) {
     var useDynamicThemeColor by rememberPreference(dynamicThemeColorKey, false)
     var themeSeed by rememberEnumPreference(themeSeedColorKey, defaultValue = AppThemeSeed.PURPLE)
     var autoSkipNextOnError by rememberPreference(autoSkipNextOnErrorKey, false)
+    var theme by rememberPreference(theme, 2)
+    var watchMode by rememberPreference(watchMode, isWatch(context))
     var ncmCookie by rememberPreference(ncmCookieKey, "")
     var unblockBaseUrl by rememberPreference(unblockBaseUrlKey, "https://unlock.depresskid.top")
     var audioCacheMaxSize by rememberPreference(
@@ -162,6 +171,18 @@ fun SettingsScreen(navController: NavHostController) {
                 Spacer(Modifier.width(12.dp))
             },
             onClick = { use40DpIcon = !use40DpIcon }
+        ),
+        SettingItemData(
+            title = stringResource(R.string.watch_mode),
+            subtitle = stringResource(R.string.watch_mode_describe),
+            imageVector = Watch,
+            trailingContent = {
+                Switch(
+                    checked = watchMode,
+                    onCheckedChange = { watchMode = it }
+                )
+                Spacer(Modifier.width(12.dp))
+            }
         ),
         SettingItemData(
             title = stringResource(R.string.audio_quality),
@@ -327,8 +348,10 @@ fun SettingsScreen(navController: NavHostController) {
             currentSeed = themeSeed,
             dynamicColorAvailable = dynamicColorAvailable,
             dynamicColorEnabled = useDynamicThemeColor,
+            theme = theme,
             onDismiss = { showThemeSeedDialog = false },
             onDynamicColorChange = { useDynamicThemeColor = it },
+            onThemeChange = { theme = it },
             onSeedSelected = { themeSeed = it }
         )
     }
@@ -457,3 +480,13 @@ data class SettingItemData(
     val onClick: (() -> Unit)? = null,
     val trailingContent: @Composable (() -> Unit)? = null
 )
+
+fun isWatch(context: Context): Boolean {
+    val packageManager = context.packageManager
+    if (packageManager.hasSystemFeature(PackageManager.FEATURE_WATCH)) return true
+
+    val displayMetrics = context.resources.displayMetrics
+    val dpi = displayMetrics.densityDpi
+    val smallestWidthDp = context.resources.configuration.smallestScreenWidthDp
+    return dpi >= 240 && smallestWidthDp in 1..360
+}

@@ -49,6 +49,10 @@ private fun route(path: String, p: Map<String, Any>): Route {
     fun weapi(uri: String, data: Map<String, Any> = emptyMap()) = Route(uri, data, Encryption.WEAPI)
     fun eapi(uri: String, data: Map<String, Any> = emptyMap()) = Route(uri, data, Encryption.EAPI)
     return when (path) {
+        "/captcha/sent" -> weapi("/api/sms/captcha/sent", mapOf("cellphone" to required("phone"), "ctcode" to (p["ctcode"] ?: "86")))
+        "/login/cellphone" -> weapi("/api/login/cellphone", mapOf("phone" to required("phone"), "captcha" to required("captcha"), "countrycode" to (p["countrycode"] ?: "86"), "rememberLogin" to true))
+        "/login/qr/check" -> weapi("/api/login/qrcode/client/login", mapOf("key" to required("key"), "type" to 1))
+        "/login/qr/key" -> weapi("/api/login/qrcode/unikey", mapOf("type" to 1))
         "/album" -> weapi("/api/v1/album/${required("id")}")
         "/album/detail/dynamic" -> eapi("/api/album/detail/dynamic", mapOf("id" to required("id")))
         "/album/new" -> weapi("/api/album/new", mapOf("limit" to (p["limit"] ?: 30), "offset" to 0, "total" to true, "area" to "ALL"))
@@ -84,6 +88,9 @@ private fun route(path: String, p: Map<String, Any>): Route {
     }
 }
 
+internal suspend fun sendRawPublic(path: String, params: Map<String, Any>): Pair<String, String> =
+    sendRaw(route(path, params))
+
 private fun Any?.toJsonElement(): JsonElement = when (this) {
     null -> JsonNull
     is String -> JsonPrimitive(this)
@@ -101,7 +108,11 @@ private fun cookieMap(os: String? = null): Map<String, String> = buildMap {
     if (os != null) put(CookieKeys.OS, os)
 }
 
-private suspend fun send(route: Route, os: String? = null, domain: String? = null): String {
+private suspend fun send(route: Route, os: String? = null, domain: String? = null): String =
+    sendRaw(route, os, domain).first
+
+/** Same as [send] but also returns the merged Set-Cookie string, required by the login flows. */
+private suspend fun sendRaw(route: Route, os: String? = null, domain: String? = null): Pair<String, String> {
     val cookie = cookieMap(os)
     val csrf = cookie[CookieKeys.CSRF].orEmpty()
     val header = buildMap<String, Any> {
@@ -138,7 +149,11 @@ private suspend fun send(route: Route, os: String? = null, domain: String? = nul
     }
     val body = response.bodyAsText()
     response.requireSuccess(body)
-    return body
+    val setCookie = response.headers.getAll("Set-Cookie").orEmpty()
+        .map { it.substringBefore(';').trim() }
+        .filter { it.contains('=') }
+        .joinToString("; ")
+    return body to setCookie
 }
 
 private suspend fun scrobble(p: Map<String, Any>): String {
@@ -158,6 +173,14 @@ private suspend fun scrobble(p: Map<String, Any>): String {
 
 suspend fun requestNetease(path: String, params: Map<String, Any> = emptyMap()): String {
     if (path == "/scrobble/v1") return scrobble(params)
+    if (path == "/login/qr/create") {
+        val key = requireNotNull(params["key"]) { "Missing key for /login/qr/create" }
+        val url = "https://music.163.com/login?codekey=$key"
+        return apiJson.encodeToString(
+            JsonObject.serializer(),
+            mapOf("code" to 200, "data" to mapOf("qrurl" to url, "qrimg" to url)).toJsonElement() as JsonObject
+        )
+    }
     val selected = route(path, params)
     if (path != "/playlist/subscribe") return send(selected)
 
@@ -174,6 +197,30 @@ suspend fun requestNetease(path: String, params: Map<String, Any> = emptyMap()):
 
 suspend inline fun <reified T> apiGet(path: String, params: Map<String, Any> = emptyMap()): Result<T> =
     runCatching { apiJson.decodeFromString<T>(requestNetease(path, params)) }
+
+data class ApiResponseWithCookie<T>(val data: T, val cookie: String)
+
+/** Login endpoints need the raw Set-Cookie header, which [apiGet] discards. */
+suspend fun requestNeteaseWithCookie(path: String, params: Map<String, Any> = emptyMap()): Pair<String, String> =
+    sendRawPublic(path, params)
+
+suspend inline fun <reified T> apiGetWithCookie(
+    path: String,
+    params: Map<String, Any> = emptyMap()
+): Result<ApiResponseWithCookie<T>> = runCatching {
+    val (body, cookie) = requestNeteaseWithCookie(path, params)
+    val merged = cookie.ifEmpty { extractBodyCookie(body) }
+    ApiResponseWithCookie(apiJson.decodeFromString<T>(body), merged)
+}
+
+@PublishedApi
+internal fun extractBodyCookie(body: String): String = runCatching {
+    (apiJson.parseToJsonElement(body) as? JsonObject)
+        ?.get("cookie")
+        ?.jsonPrimitive
+        ?.content
+        .orEmpty()
+}.getOrDefault("")
 
 suspend inline fun <reified T> apiPost(path: String, body: Map<String, Any> = emptyMap()): Result<T> =
     apiGet(path, body)

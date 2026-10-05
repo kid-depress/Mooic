@@ -1,5 +1,6 @@
 package com.rcmiku.music.ui.components
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,11 +16,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,13 +37,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.rcmiku.music.ui.theme.AppThemeSeed
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThemeSeedDialog(
     currentSeed: AppThemeSeed,
     dynamicColorAvailable: Boolean,
     dynamicColorEnabled: Boolean,
+    theme: Int,
     onDismiss: () -> Unit,
+    onThemeChange: (Int) -> Unit,
     onDynamicColorChange: (Boolean) -> Unit,
     onSeedSelected: (AppThemeSeed) -> Unit,
 ) {
@@ -88,6 +102,66 @@ fun ThemeSeedDialog(
                             onCheckedChange = onDynamicColorChange,
                             enabled = dynamicColorAvailable
                         )
+                    }
+                    val context = LocalContext.current
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        var expanded by remember { mutableStateOf(false) }
+                        var _theme by remember { mutableStateOf(theme) }
+
+                        val themeOptions = listOf(
+                            0 to "浅色主题",
+                            1 to "深色主题",
+                            2 to "依照系统"
+                        )
+
+                        var currentLabel = themeOptions.find { it.first == _theme }?.second ?: ""
+
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = currentLabel,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("主题") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                themeOptions.forEach { (value, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            _theme = value
+                                            onThemeChange(_theme)
+                                            Toast.makeText(
+                                                context,
+                                                "已切换为${themeOptions.find { it.first == value }?.second}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 

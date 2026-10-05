@@ -1,7 +1,6 @@
 package com.rcmiku.music.ui.theme
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -23,7 +22,7 @@ import com.rcmiku.music.utils.rememberEnumPreference
 
 @Composable
 fun JetMeloTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
