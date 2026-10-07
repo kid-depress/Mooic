@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -110,6 +113,12 @@ fun SearchScreen(
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var selectSong by remember { mutableStateOf<Song?>(null) }
 
+    // SearchBar 顶部 = 状态栏 + 自带 8dp 内边距;这里抵消 4dp,让搜索框更贴近状态栏
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val searchBarTopInset = (statusBarTop - 4.dp).coerceAtLeast(0.dp)
+    // 搜索框实际底边 = searchBarTopInset + 8dp(内部) + 56dp(输入框),Tab 栏再留 8dp 间距
+    val searchResultsTop = searchBarTopInset + 72.dp
+
     Box(
         Modifier
             .fillMaxSize()
@@ -118,6 +127,7 @@ fun SearchScreen(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .semantics { traversalIndex = 0f },
+            windowInsets = WindowInsets(0.dp, searchBarTopInset, 0.dp, 0.dp),
             inputField = {
                 SearchBarDefaults.InputField(
                     query = searchValue,
@@ -223,7 +233,7 @@ fun SearchScreen(
             }
         )
 
-        Column(Modifier.padding(top = 100.dp)) {
+        Column(Modifier.padding(top = searchResultsTop)) {
             SecondaryTabRow(
                 selectedTabIndex = state,
                 indicator = {
