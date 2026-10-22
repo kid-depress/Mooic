@@ -27,7 +27,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import java.util.UUID
 
-var UNBLOCK_BASE_URL = "https://unlock.depresskid.top"
+var UNBLOCK_BASE_URL = "https://unm-server.focalors.ltd"
 
 /** Shared HTTP client. Third-party matching requests must not receive the account Cookie. */
 val apiClient = HttpClient(OkHttp) {

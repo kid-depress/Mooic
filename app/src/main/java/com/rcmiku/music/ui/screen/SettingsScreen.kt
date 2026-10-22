@@ -101,7 +101,7 @@ fun SettingsScreen(navController: NavHostController) {
     var themeSeed by rememberEnumPreference(themeSeedColorKey, defaultValue = AppThemeSeed.PURPLE)
     var autoSkipNextOnError by rememberPreference(autoSkipNextOnErrorKey, false)
     var ncmCookie by rememberPreference(ncmCookieKey, "")
-    var unblockBaseUrl by rememberPreference(unblockBaseUrlKey, "https://unlock.depresskid.top")
+    var unblockBaseUrl by rememberPreference(unblockBaseUrlKey, "https://unm-server.focalors.ltd")
     var audioCacheMaxSize by rememberPreference(
         audioCacheMaxSizeKey,
         AudioCache.DEFAULT_MAX_SIZE_BYTES,
@@ -375,7 +375,7 @@ fun SettingsScreen(navController: NavHostController) {
         UrlEditDialog(
             title = stringResource(R.string.unblock_server),
             currentUrl = unblockBaseUrl,
-            defaultUrl = "https://unlock.depresskid.top",
+            defaultUrl = "https://unm-server.focalors.ltd",
             onDismiss = { showUnblockUrlDialog = false },
             onConfirm = { unblockBaseUrl = it }
         )
